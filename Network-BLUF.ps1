@@ -1,7 +1,7 @@
 ﻿function Network-BLUF {
 #.SYNOPSIS
 # Tool to view & modify the configuration of the current default networking interface.
-# ARBITRARY VERSION NUMBER:  2.0.0
+# ARBITRARY VERSION NUMBER:  2.0.1
 # AUTHOR:  Tyler McCann (@tylerdotrar)
 #
 #.DESCRIPTION
@@ -34,7 +34,7 @@
 #    -Suffix      -->   Domain Suffix (e.g., example.com)
 #
 #.LINK
-# https://github.com/tylerdotrar/<TBD>
+# https://github.com/tylerdotrar/netbluf
     
     [Alias('netbluf')]
 
