@@ -1,29 +1,32 @@
 ﻿function Network-BLUF {
 #.SYNOPSIS
-# Tool to view & modify the configuration of the current default networking interface.
-# ARBITRARY VERSION NUMBER:  2.0.2
+# View, modify, and renew the configuration of the current default networking interface.
+# ARBITRARY VERSION NUMBER:  2.1.2
 # AUTHOR:  Tyler McCann (@tylerdotrar)
 #
 #.DESCRIPTION
-# The Bottom Line Up Front of your primary networking configuration.  Effectively, this
-# tool is ipconfig-lite -- rather than returning all information for all your interfaces,
-# it returns only the data you care about for only the current default network interface,
-# which it determines utilizing interface metrics and connectivity.
+# The Bottom Line Up Front of the default networking interface.  Effectively, this tool
+# is ipconfig-lite -- rather than returning verbose information for all of the network
+# interfaces, netbluf returns only the data you care about for the most relevant interface.
+# To do this, it determines your most relevant interface (i.e., the default interface) via
+# connectivity and interface metrics.
 # 
-# On top of viewing data, it also has the built in functionality of easily being able to 
-# statically modify the networking configuration of said interface, as well as renewing
-# the interface via DHCP. Currently supported static networking parameters are IPv4
-# address, default gateway, network CIDR, primary DNS, and DNS suffix.  When statically
-# setting settings, if only one static parameter is specified the remaining parameters
-# will be copied from the current configuration.
+# On top of viewing configurations, it also has the built-in functionality of intuitively
+# setting static networking configurations on the default interface -- or renewing said
+# interface via DHCP.  Currently, the only supported static networking parameters are IPv4
+# address, default gateway, network CIDR, primary DNS, and DNS suffix.
 #
-# DHCP/Static configuration requires elevated privileges.
+# Notes:
+#
+#  - When statically setting an interface, if only one static parameter is specified the
+#    remaining parameters will be copied from the current configuration.
+#  - Static configurations and DHCP renewing require elevated privileges.
 #
 # Parameters:
 #
 #   Primary
-#    -DHCP        -->   Renew default interface network configuration via DHCP
-#    -Static      -->   Statically set default interface network configuration
+#    -Static      -->   (Alias: Set)   Statically set default interface network configuration
+#    -DHCP        -->   (Alias: Renew) Renew default interface network configuration via DHCP
 #    -Help        -->   Return Get-Help information
 #
 #   Static Options
@@ -41,8 +44,10 @@
     Param (
         
         # Primary
-        [switch] $DHCP,   # Elevated Privileges Required
+        [Alias('Set')]
         [switch] $Static, # Elevated Privileges Required
+        [Alias('Renew')]
+        [switch] $DHCP,   # Elevated Privileges Required
         [switch] $Help,
 
         # Static Options
@@ -134,8 +139,8 @@
 
 
             # Statically set new IP and DNS settings
-            Remove-NetIPAddress -InterfaceIndex $DefaultIf -AddressFamily IPv4 -Confirm:$False
-            Remove-NetRoute -InterfaceIndex $DefaultIf -AddressFamily IPv4 -Confirm:$False
+            Remove-NetIPAddress -InterfaceIndex $DefaultIf -AddressFamily IPv4 -Confirm:$False 2>$NULL
+            Remove-NetRoute -InterfaceIndex $DefaultIf -AddressFamily IPv4 -Confirm:$False 2>$NULL
 
             New-NetIPAddress -InterfaceIndex $DefaultIf -IPAddress $IPAddress -PrefixLength $CIDR -DefaultGateway $Gateway | Out-Null
             Set-DnsClientServerAddress -InterfaceIndex $DefaultIf -ServerAddresses $DNS
@@ -167,7 +172,7 @@
             
 
             # Remove static settings
-            Remove-NetRoute -InterfaceIndex $DefaultIf -Confirm:$False
+            Remove-NetRoute -InterfaceIndex $DefaultIf -Confirm:$False 2>$NULL
             Set-DnsClient -InterfaceIndex $DefaultIf -ResetConnectionSpecificSuffix
             Set-DnsClientServerAddress -InterfaceIndex $DefaultIf -ResetServerAddresses
             Set-NetIPInterface -InterfaceIndex $DefaultIf -Dhcp Enabled
