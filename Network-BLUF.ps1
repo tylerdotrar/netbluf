@@ -1,7 +1,7 @@
 ﻿function Network-BLUF {
 #.SYNOPSIS
 # Tool to view & modify the configuration of the current default networking interface.
-# ARBITRARY VERSION NUMBER:  2.0.1
+# ARBITRARY VERSION NUMBER:  2.0.2
 # AUTHOR:  Tyler McCann (@tylerdotrar)
 #
 #.DESCRIPTION
@@ -103,7 +103,7 @@
         $IPAddress = (Get-NetIPAddress -InterfaceIndex $DefaultIf -AddressFamily IPv4).IPAddress
         $Gateway   = (Get-NetRoute "0.0.0.0/0" -InterfaceIndex $DefaultIf -AddressFamily IPv4).NextHop
         $CIDR      = (Get-NetIPAddress -InterfaceIndex $DefaultIf -AddressFamily IPv4).PrefixLength
-        $DNS       = (Get-DnsClientServerAddress -InterfaceIndex $DefaultIf -AddressFamily IPv4).ServerAddresses[-1]
+        $DNS       = (Get-DnsClientServerAddress -InterfaceIndex $DefaultIf -AddressFamily IPv4).ServerAddresses[0]
         $Suffix    = (Get-DnsClient -InterfaceIndex $DefaultIf).ConnectionSpecificSuffix
 
 
