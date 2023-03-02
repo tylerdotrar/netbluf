@@ -28,10 +28,14 @@ remaining parameters will be copied from the current configuration.
   -IPAddress   -->   IPv4 Address
   -Gateway     -->   Network Default Gateway
   -CIDR        -->   CIDR / Prefix Length (e.g., 24)
-  -DNS         -->   Domain Name Server (only primary)
+  -DNS         -->   Primary DNS Server
+  -AltDNS      -->   Secondary DNS Server
   -Suffix      -->   Domain Suffix (e.g., example.com)
 ```
 # Usage
+Version 2.5.0 now supports secondary DNS servers.
+![Update 2.5.0](https://cdn.discordapp.com/attachments/855920119292362802/1080706609518485545/image.png)
+
 Unprivileged user has the ability to view network configuration, but not make any changes.
 ![Unprivileged User](https://cdn.discordapp.com/attachments/855920119292362802/1071095246961791026/image.png)
 
