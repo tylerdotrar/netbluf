@@ -1,7 +1,7 @@
 ﻿function Network-BLUF {
 #.SYNOPSIS
 # View, modify, and renew the configuration of the current default networking interface.
-# ARBITRARY VERSION NUMBER:  2.1.2
+# ARBITRARY VERSION NUMBER:  2.5.0
 # AUTHOR:  Tyler McCann (@tylerdotrar)
 #
 #.DESCRIPTION
@@ -14,7 +14,7 @@
 # On top of viewing configurations, it also has the built-in functionality of intuitively
 # setting static networking configurations on the default interface -- or renewing said
 # interface via DHCP.  Currently, the only supported static networking parameters are IPv4
-# address, default gateway, network CIDR, primary DNS, and DNS suffix.
+# address, default gateway, network CIDR, DNS servers, and DNS suffix.
 #
 # Notes:
 #
@@ -33,7 +33,8 @@
 #    -IPAddress   -->   IPv4 Address
 #    -Gateway     -->   Network Default Gateway
 #    -CIDR        -->   CIDR / Prefix Length (e.g., 24)
-#    -DNS         -->   Domain Name Server (only primary)
+#    -DNS         -->   Primary DNS Server
+#    -AltDNS      -->   Secondary DNS Server
 #    -Suffix      -->   Domain Suffix (e.g., example.com)
 #
 #.LINK
@@ -55,6 +56,7 @@
         [string] $Gateway,
         [string] $CIDR,
         [string] $DNS,
+		[string] $AltDNS,
         [string] $Suffix
     )    
 
@@ -75,7 +77,7 @@
     function Get-NetConfig {
 
         # Determine the interface being used for default routing.
-        $IfArray = (Get-NetRoute "0.0.0.0/0").ifIndex | Select-Object -Unique
+        $IfArray = (Get-NetRoute '0.0.0.0/0').ifIndex | Select-Object -Unique
     
 
         # If multiple interfaces are returned, find the highest priority interface that is both Connected and IPv4
@@ -106,14 +108,18 @@
 
         # Acquire pre-requisite network data
         $IPAddress = (Get-NetIPAddress -InterfaceIndex $DefaultIf -AddressFamily IPv4).IPAddress
-        $Gateway   = (Get-NetRoute "0.0.0.0/0" -InterfaceIndex $DefaultIf -AddressFamily IPv4).NextHop
+        $Gateway   = (Get-NetRoute '0.0.0.0/0' -InterfaceIndex $DefaultIf -AddressFamily IPv4).NextHop
         $CIDR      = (Get-NetIPAddress -InterfaceIndex $DefaultIf -AddressFamily IPv4).PrefixLength
-        $DNS       = (Get-DnsClientServerAddress -InterfaceIndex $DefaultIf -AddressFamily IPv4).ServerAddresses[0]
+        $DNS       = (Get-DnsClientServerAddress -InterfaceIndex $DefaultIf -AddressFamily IPv4).ServerAddresses
         $Suffix    = (Get-DnsClient -InterfaceIndex $DefaultIf).ConnectionSpecificSuffix
 
 
+        # Prep DNS array for potential static alternative DNS setting
+        if (!$DNS[1]) { $DNS += $NULL }
+
+
         # Determine the length of the longest string
-        $MaxLength = (@($IfAlias,$DefaultIf,$IPAddress,$Gateway,$CIDR,$DNS,$Suffix) | Measure-Object -Maximum -Property Length).Maximum
+        $MaxLength = (@($IfAlias,$DefaultIf,$IPAddress,$Gateway,$CIDR,$DNS[0],$DNS[1],$Suffix) | Measure-Object -Maximum -Property Length).Maximum
 
 
         # Return relevant network data
@@ -130,12 +136,15 @@
             # Collect Network Interface Data
             $NetConf   = Get-NetConfig
             $DefaultIf = $NetConf.Index
+            $DNS_Table = $NetConf.DNS
 
-            if (!$IPAddress) { $IPAddress = $NetConf.IPaddr  }
-            if (!$Gateway)   { $Gateway   = $NetConf.Gateway }
-            if (!$CIDR)      { $CIDR      = $NetConf.CIDR    }
-            if (!$DNS)       { $DNS       = $NetConf.DNS     }
-            if (!$Suffix)    { $Suffix    = $NetConf.Suffix  }
+
+            if (!$IPAddress) { $IPAddress    = $NetConf.IPaddr  }
+            if (!$Gateway)   { $Gateway      = $NetConf.Gateway }
+            if (!$CIDR)      { $CIDR         = $NetConf.CIDR    }
+            if ($DNS)        { $DNS_Table[0] = $DNS             }
+            if ($AltDNS)     { $DNS_Table[1] = $AltDNS          }
+            if (!$Suffix)    { $Suffix       = $NetConf.Suffix  }
 
 
             # Statically set new IP and DNS settings
@@ -143,12 +152,12 @@
             Remove-NetRoute -InterfaceIndex $DefaultIf -AddressFamily IPv4 -Confirm:$False 2>$NULL
 
             New-NetIPAddress -InterfaceIndex $DefaultIf -IPAddress $IPAddress -PrefixLength $CIDR -DefaultGateway $Gateway | Out-Null
-            Set-DnsClientServerAddress -InterfaceIndex $DefaultIf -ServerAddresses $DNS
+            Set-DnsClientServerAddress -InterfaceIndex $DefaultIf -ServerAddresses $DNS_Table
             if ($Suffix) { Set-DnsClient -InterfaceIndex $DefaultIf -ConnectionSpecificSuffix $Suffix }
 
 
             # Output Information
-            Write-Host "Default interface statically set." -ForegroundColor Yellow
+            Write-Host 'Default interface statically set.' -ForegroundColor Yellow
             NetConfig-Status
         }
 
@@ -184,7 +193,7 @@
 
 
             # Output Information
-            Write-Host "Default interface renewed via DHCP." -ForegroundColor Yellow
+            Write-Host 'Default interface renewed via DHCP.' -ForegroundColor Yellow
             NetConfig-Status
         }
 
@@ -222,21 +231,24 @@
 
 
         # Output Information
+		Write-Host
         Net-Out -Block1 'Interface Alias' -Block2 $NetConf.Alias -Length $NetConf.Length
         Net-Out -Block1 'Interface Index' -Block2 $NetConf.Index -Length $NetConf.Length
         Net-Out -Block1 'Configuration' -Block2 $NetConf.Config -Length $NetConf.Length
 
-        Net-Out -Block1 'IP Address' -Block2 $NetConf.IPaddr -Length $NetConf.Length -NewLine
+        Net-Out -Block1 'IPv4 Address' -Block2 $NetConf.IPaddr -Length $NetConf.Length -NewLine
         Net-Out -Block1 'Gateway' -Block2 $NetConf.Gateway -Length $NetConf.Length
         Net-Out -Block1 'CIDR' -Block2 $NetConf.CIDR -Length $NetConf.Length
 
-        Net-Out -Block1 'DNS Server' -Block2 $NetConf.DNS -Length $NetConf.Length -NewLine
+        Net-Out -Block1 'DNS Server (Primary)' -Block2 $NetConf.DNS[0] -Length $NetConf.Length -NewLine
+        Net-Out -Block1 'DNS Server (Alt)' -Block2 $NetConf.DNS[1] -Length $NetConf.Length
         Net-Out -Block1 'DNS Suffix' -Block2 $NetConf.Suffix -Length $NetConf.Length
+		Write-Host
     }
 
     # Main Function
     if ($Static)   {
-        $StaticParams = @($IPAddress,$Gateway,$CIDR,$DNS,$Suffix)
+        $StaticParams = @($IPAddress,$Gateway,$CIDR,$DNS,$AltDNS,$Suffix)
         if ($StaticParams -gt 0) { NetConfig-Static }
         else { Write-Host 'No static parameters specified.' -ForegroundColor Red }
     }
